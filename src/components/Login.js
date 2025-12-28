@@ -15,11 +15,27 @@ export default function Login({ onUnlock }) {
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("error");
 
+  const [walletStatus, setWalletStatus] = useState("checking"); 
+  // checking | metamask | other wallet  | none
+
   const showToast = (msg, type = "error") => {
     setToastMessage(msg);
     setToastType(type);
     setTimeout(() => setToastMessage(""), 3000);
   };
+
+  // CHEck wallet is connected or not 
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.ethereum) {
+      if (window.ethereum.isMetaMask) {
+        setWalletStatus("metamask");
+      } else {
+        setWalletStatus("other");
+      }
+    } else {
+      setWalletStatus("none");
+    }
+  }, []);
 
   useEffect(() => {
     async function init() {
@@ -47,7 +63,7 @@ export default function Login({ onUnlock }) {
     }
 
     setProcessing(true);
-    setStatus("Setting things up...");
+    setStatus("Creating vault...");
     try {
       const emptyVault = { accounts: [] };
       const encrypted = await encryptVault(emptyVault, password);
@@ -56,7 +72,7 @@ export default function Login({ onUnlock }) {
       showToast("Vault created successfully!", "success");
       setTimeout(() => onUnlock(emptyVault, password), 800);
     } catch (err) {
-      showToast("Creation failed: " + err.message);
+      showToast("Creation failed");
       setStatus("Create Master Password");
     } finally {
       setProcessing(false);
@@ -74,7 +90,8 @@ export default function Login({ onUnlock }) {
     try {
       const encryptedVault = await loadVault();
       const verified = await verifyVault(encryptedVault);
-      if (!verified) throw new Error("Integrity check failed");
+      if (!verified) throw new Error("Integrity failed");
+
       const decrypted = await decryptVault(encryptedVault, password);
       showToast("Vault unlocked!", "success");
       setTimeout(() => onUnlock(decrypted, password), 800);
@@ -104,11 +121,18 @@ export default function Login({ onUnlock }) {
 
   return (
     <div style={styles.container}>
+      {/* WALLET BANNER OT NOT ?? */}
+      <div style={styles.walletBanner(walletStatus)}>
+        {walletStatus === "checking" && "Checking wallet..."}
+        {walletStatus === "metamask" && "🦊 MetaMask detected"}
+        {walletStatus === "other" && " wallet detected"}
+        {walletStatus === "none" && "❌ No Ethereum wallet detected"}
+      </div>
+
       <div style={styles.content}>
         <h1 style={styles.title}>{vaultExists ? "Welcome back!" : "New Vault"}</h1>
         <p style={styles.status}>{status}</p>
 
-        {/* PASSWORD */}
         <div style={styles.inputWrapper}>
           <input
             type={showPassword ? "text" : "password"}
@@ -126,7 +150,6 @@ export default function Login({ onUnlock }) {
           </button>
         </div>
 
-        {/* CONFIRM PASSWORD (ONLY FOR CREATE) */}
         {!vaultExists && (
           <div style={styles.inputWrapper}>
             <input
@@ -140,16 +163,12 @@ export default function Login({ onUnlock }) {
           </div>
         )}
 
-        {/* PASSWORD MISMATCH */}
         {!vaultExists &&
-          confirmPassword.length > 0 &&
+          confirmPassword &&
           password !== confirmPassword && (
-            <p style={{ color: "#ef4444", fontSize: "13px" }}>
-              Passwords do not match
-            </p>
+            <p style={styles.errorText}>Passwords do not match</p>
           )}
 
-        {/* STRENGTH BAR */}
         <div style={styles.strengthBar}>
           <div
             style={{
@@ -160,7 +179,6 @@ export default function Login({ onUnlock }) {
           />
         </div>
 
-        {/* ACTION BUTTON */}
         <button
           onClick={handleAuth}
           disabled={processing || !isPasswordValid}
@@ -172,7 +190,6 @@ export default function Login({ onUnlock }) {
           {processing ? "please wait..." : vaultExists ? "unlock" : "create"}
         </button>
 
-        {/* TOGGLE MODE */}
         {!processing && (
           <button
             onClick={() => {
@@ -180,7 +197,9 @@ export default function Login({ onUnlock }) {
               setPassword("");
               setConfirmPassword("");
               setStatus(
-                vaultExists ? "Create Master Password" : "Unlock your Vault"
+                vaultExists
+                  ? "Create Master Password"
+                  : "Unlock your Vault"
               );
             }}
             style={styles.toggleButton}
@@ -195,6 +214,7 @@ export default function Login({ onUnlock }) {
   );
 }
 
+/*  STYLES */
 const styles = {
   container: {
     minHeight: "100vh",
@@ -203,7 +223,27 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
     fontFamily: "Ubuntu, sans-serif",
+    position: "relative",
   },
+
+  walletBanner: (status) => ({
+    position: "absolute",
+    top: "20px",
+    padding: "8px 16px",
+    borderRadius: "20px",
+    fontSize: "13px",
+    background:
+      status === "metamask"
+        ? "#064e3b"
+        : status === "other"
+        ? "#78350f"
+        : status === "none"
+        ? "#7f1d1d"
+        : "#1e293b",
+    color: "#e2e8f0",
+    border: "1px solid #334155",
+  }),
+
   content: {
     width: "100%",
     maxWidth: "320px",
@@ -212,9 +252,12 @@ const styles = {
     alignItems: "center",
     gap: "14px",
   },
+
   title: { color: "#e2e8f0", fontSize: "30px" },
   status: { color: "#94a3b8", fontSize: "14px" },
+
   inputWrapper: { width: "100%", position: "relative" },
+
   input: {
     width: "100%",
     padding: "12px",
@@ -224,6 +267,7 @@ const styles = {
     border: "1px solid #334155",
     textAlign: "center",
   },
+
   eyeButton: {
     position: "absolute",
     right: "12px",
@@ -233,13 +277,24 @@ const styles = {
     border: "none",
     cursor: "pointer",
   },
+
+  errorText: {
+    color: "#ef4444",
+    fontSize: "13px",
+  },
+
   strengthBar: {
     height: "4px",
     width: "100%",
     background: "#1e293b",
     borderRadius: "10px",
   },
-  strengthFill: { height: "100%", transition: "0.3s" },
+
+  strengthFill: {
+    height: "100%",
+    transition: "0.3s",
+  },
+
   button: {
     width: "100%",
     padding: "14px",
@@ -249,12 +304,14 @@ const styles = {
     borderRadius: "14px",
     fontWeight: "600",
   },
+
   toggleButton: {
     background: "none",
     border: "none",
     color: "#64748b",
     cursor: "pointer",
   },
+
   spinner: {
     width: "24px",
     height: "24px",
