@@ -79,30 +79,63 @@ export default function Login({ onUnlock }) {
     }
   };
 
+  // const handleUnlock = async () => {
+  //   if (password.length < 8) {
+  //     showToast("Password must be at least 8 characters", "warning");
+  //     return;
+  //   }
+
+  //   setProcessing(true);
+  //   setStatus("Verifying...");
+  //   try {
+  //     const encryptedVault = await loadVault();
+  //     const verified = await verifyVault(encryptedVault);
+  //     if (!verified) throw new Error("Integrity failed");
+
+  //     const decrypted = await decryptVault(encryptedVault, password);
+  //     showToast("Vault unlocked!", "success");
+  //     setTimeout(() => onUnlock(decrypted, password), 800);
+  //   } catch {
+  //     showToast("Wrong password");
+  //     setPassword("");
+  //     setStatus("Unlock your Vault");
+  //   } finally {
+  //     setProcessing(false);
+  //   }
+  // };
   const handleUnlock = async () => {
-    if (password.length < 8) {
-      showToast("Password must be at least 8 characters", "warning");
+  if (password.length < 8) {
+    showToast("Password must be at least 8 characters", "warning");
+    return;
+  }
+
+  setProcessing(true);
+  setStatus("Unlocking...");
+
+  try {
+    const encryptedVault = await loadVault();
+
+    if (!encryptedVault) {
+      showToast("No vault found", "error");
       return;
     }
 
-    setProcessing(true);
-    setStatus("Verifying...");
-    try {
-      const encryptedVault = await loadVault();
-      const verified = await verifyVault(encryptedVault);
-      if (!verified) throw new Error("Integrity failed");
+    // 🔐 ONLY decrypt locally in popup
+    const decrypted = await decryptVault(encryptedVault, password);
 
-      const decrypted = await decryptVault(encryptedVault, password);
-      showToast("Vault unlocked!", "success");
-      setTimeout(() => onUnlock(decrypted, password), 800);
-    } catch {
-      showToast("Wrong password");
-      setPassword("");
-      setStatus("Unlock your Vault");
-    } finally {
-      setProcessing(false);
-    }
-  };
+    showToast("Vault unlocked!", "success");
+    setTimeout(() => onUnlock(decrypted, password), 800);
+
+  } catch (err) {
+    console.error(err);
+    showToast("Wrong password", "error");
+    setPassword("");
+    setStatus("Unlock your Vault");
+  } finally {
+    setProcessing(false);
+  }
+};
+
 
   const handleAuth = () => {
     vaultExists ? handleUnlock() : handleCreateVault();
@@ -216,33 +249,75 @@ export default function Login({ onUnlock }) {
 
 /*  STYLES */
 const styles = {
-  container: {
-    minHeight: "100vh",
-    background: "#0f172a",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    fontFamily: "Ubuntu, sans-serif",
-    position: "relative",
-  },
+  // container: {
+  //   minHeight: "100vh",
+  //   background: "#0f172a",
+  //   display: "flex",
+  //   justifyContent: "center",
+  //   alignItems: "center",
+  //   fontFamily: "Ubuntu, sans-serif",
+  //   position: "relative",
+  // },
 
+
+//updated one size fixed
+ 
+  container: {
+  width: "360px",
+  minHeight: "480px",
+  background: "#0f172a",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  fontFamily: "Ubuntu, sans-serif",
+  position: "relative",
+  overflow: "hidden",
+},
+
+
+  // walletBanner: (status) => ({
+  //   position: "absolute",
+  //   top: "20px",
+  //   padding: "8px 16px",
+  //   borderRadius: "20px",
+  //   fontSize: "13px",
+  //   background:
+  //     status === "metamask"
+  //       ? "#064e3b"
+  //       : status === "other"
+  //       ? "#78350f"
+  //       : status === "none"
+  //       ? "#7f1d1d"
+  //       : "#1e293b",
+  //   color: "#e2e8f0",
+  //   border: "1px solid #334155",
+  // }),
+
+
+  //Updated one
+  // the size is fixed 
   walletBanner: (status) => ({
-    position: "absolute",
-    top: "20px",
-    padding: "8px 16px",
-    borderRadius: "20px",
-    fontSize: "13px",
-    background:
-      status === "metamask"
-        ? "#064e3b"
-        : status === "other"
-        ? "#78350f"
-        : status === "none"
-        ? "#7f1d1d"
-        : "#1e293b",
-    color: "#e2e8f0",
-    border: "1px solid #334155",
-  }),
+  position: "absolute",
+  top: "12px",
+  left: "50%",
+  transform: "translateX(-50%)",
+  maxWidth: "90%",
+  textAlign: "center",
+  padding: "6px 14px",
+  borderRadius: "20px",
+  fontSize: "12px",
+  whiteSpace: "nowrap",
+  background:
+    status === "metamask"
+      ? "#064e3b"
+      : status === "other"
+      ? "#78350f"
+      : status === "none"
+      ? "#7f1d1d"
+      : "#1e293b",
+  color: "#e2e8f0",
+  border: "1px solid #334155",
+}),
 
   content: {
     width: "100%",
